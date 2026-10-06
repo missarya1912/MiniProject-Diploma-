@@ -8,9 +8,6 @@ const char* password = "YOUR_HOTSPOT_PASSWORD";
 #define CAMERA_MODEL_AI_THINKER
 #include "camera_pins.h"
 
-// Face detection configuration
-mtmn_config_t mtmn_config = {0};
-
 void setup() {
   Serial.begin(115200);
 
@@ -32,9 +29,9 @@ void setup() {
   config.pin_sscb_sda = SIOD_GPIO_NUM;
   config.pin_sscb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn     = PWDN_GPIO_NUM;
-  config.pin_reset    = RESET_GPIO_NUM;
+  config.pin_reset   = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_RGB565;   // Use RGB565 for face detection
+  config.pixel_format = PIXFORMAT_JPEG;
 
   if(psramFound()){
     config.frame_size = FRAMESIZE_QVGA;
@@ -51,34 +48,16 @@ void setup() {
     return;
   }
 
-  // Initialize face detection parameters
-  mtmn_config.type = FAST;
-  mtmn_config.min_face = 80;
-  mtmn_config.pyramid = 0.7;
-  mtmn_config.pyramid_times = 4;
-  mtmn_config.p_threshold.score = 0.6;
-  mtmn_config.p_threshold.nms = 0.7;
-  mtmn_config.r_threshold.score = 0.7;
-  mtmn_config.r_threshold.nms = 0.7;
-  mtmn_config.o_threshold.score = 0.7;
-  mtmn_config.o_threshold.nms = 0.7;
-
   WiFi.begin(ssid, password);
   Serial.print("Connecting WiFi");
 
-  int retries = 0;
-  while (WiFi.status() != WL_CONNECTED && retries < 20) {
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    retries++;
   }
 
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi Connected");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("\nWiFi Connection Failed");
-  }
+  Serial.println("\nWiFi Connected");
+  Serial.println(WiFi.localIP());
 }
 
 void loop() {
@@ -89,12 +68,6 @@ void loop() {
   }
 
   dl_matrix3du_t *image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
-  if (!image_matrix) {
-    Serial.println("Image matrix allocation failed");
-    esp_camera_fb_return(fb);
-    return;
-  }
-
   fmt2rgb888(fb->buf, fb->len, fb->format, image_matrix->item);
 
   box_array_t * net_boxes = face_detect(image_matrix, &mtmn_config);
